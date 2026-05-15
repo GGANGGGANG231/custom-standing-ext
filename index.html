@@ -37,9 +37,9 @@
             <hr>
 
             <div class="settings_block">
-                <div class="flex-container" style="justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <label style="color: #60a5fa; margin: 0;"><b>👥 다중 캐릭터 스탠딩 에셋</b></label>
-                    <button class="menu_button" id="cs-add-sub-char-btn" style="padding: 3px 10px; font-weight: bold;">
+                <div class="flex-container" style="justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                    <label style="color: #60a5fa; margin: 0; white-space: nowrap;"><b>👥 다중 캐릭터 에셋</b></label>
+                    <button class="menu_button" id="cs-add-sub-char-btn" style="padding: 3px 10px; font-weight: bold; white-space: nowrap;">
                         <i class="fa-solid fa-plus"></i> 추가 캐릭터 생성
                     </button>
                 </div>
@@ -48,18 +48,18 @@
                 
                 <hr style="margin: 20px 0; border-color: rgba(255,255,255,0.1);">
                 
-                <div class="flex-container" style="justify-content: space-between;">
-                    <label style="color: #34d399;"><b>🧑 페르소나(유저) 에셋</b></label>
-                    <button class="menu_button" id="cs-refresh-user" style="padding: 2px 8px; font-size: 12px;">
+                <div class="flex-container" style="justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                    <label style="color: #34d399; margin: 0; white-space: nowrap;"><b>🧑 페르소나(유저) 에셋</b></label>
+                    <button class="menu_button" id="cs-refresh-user" style="padding: 2px 8px; font-size: 12px; white-space: nowrap;">
                         <i class="fa-solid fa-arrows-rotate"></i> 이름 변경 인식
                     </button>
                 </div>
-                <div class="flex-container flexWrap marginTop10">
-                    <button class="menu_button" onclick="document.getElementById('cs-user-asset-upload').click()">
+                <div class="flex-container flexWrap marginTop10" style="gap: 8px;">
+                    <button class="menu_button" onclick="document.getElementById('cs-user-asset-upload').click()" style="white-space: nowrap; flex: 1;">
                         <i class="fa-solid fa-file-upload"></i> 업로드
                     </button>
                     <input type="file" id="cs-user-asset-upload" multiple accept="image/*" style="display:none;">
-                    <button class="menu_button danger_button" id="cs-clear-user-assets">
+                    <button class="menu_button danger_button" id="cs-clear-user-assets" style="white-space: nowrap; flex: 1;">
                         <i class="fa-solid fa-trash"></i> 비우기
                     </button>
                 </div>
@@ -82,9 +82,9 @@
             <div class="settings_block">
                 <label><b>스탠딩 화면 설정</b></label>
                 <div class="flex-container flexWrap marginTop10 marginBottom10" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">
-                    <div class="flex-container flex1" style="margin: 0; align-items: center; gap: 10px;">
-                        <label style="font-weight: bold; color: #fbbf24; margin: 0;">🖼️ 스탠딩 프레임 (액자) 테마:</label>
-                        <select id="cs-frame-type" class="text_pole" style="width: auto;">
+                    <div class="flex-container flex1" style="margin: 0; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <label style="font-weight: bold; color: #fbbf24; margin: 0; white-space: nowrap;">🖼️ 액자 테마:</label>
+                        <select id="cs-frame-type" class="text_pole" style="width: auto; flex: 1; min-width: 100px;">
                             <option value="none">사용 안 함</option>
                             <option value="basic">기본 액자</option>
                             <option value="polaroid">폴라로이드</option>
@@ -94,13 +94,13 @@
                     </div>
                 </div>
 
-                <div class="flex-container flexWrap marginTop10">
-                    <button class="menu_button" id="cs-toggle-edit-mode">
+                <div class="flex-container flexWrap marginTop10" style="gap: 8px;">
+                    <button class="menu_button" id="cs-toggle-edit-mode" style="white-space: nowrap; flex: 1;">
                         <i class="fa-solid fa-pen-ruler"></i>
-                        <span id="cs-edit-mode-text">스탠딩 수정 모드 켜기</span>
+                        <span id="cs-edit-mode-text">수정 모드 켜기</span>
                     </button>
-                    <button class="menu_button" id="cs-reset-display">
-                        <i class="fa-solid fa-rotate-left"></i> 위치/크기 전체 초기화
+                    <button class="menu_button" id="cs-reset-display" style="white-space: nowrap; flex: 1;">
+                        <i class="fa-solid fa-rotate-left"></i> 전체 초기화
                     </button>
                 </div>
             </div>

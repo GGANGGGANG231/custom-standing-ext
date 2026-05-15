@@ -43,6 +43,7 @@ Transition guide:
 
 let extSettings = {};
 let assetsMap = {}; 
+let activeSubChars = [];
 
 let editMode = false;
 let editTarget = 'default'; 
@@ -59,16 +60,25 @@ jQuery(async () => {
         $('#extensions_settings').append($html.filter('#custom_standing_settings'));
         
         initSettings();
-        renderSubCharsUI();
         bindGlobalEvents();
         setupDragAndDrop();
 
-        eventSource.on(event_types.CHAT_CHANGED, loadAllAssets);
+        eventSource.on(event_types.CHAT_CHANGED, () => {
+            refreshActiveSubChars();
+            renderSubCharsUI();
+            loadAllAssets();
+        });
+        
+        // 🌟 여기가 번역기와 충돌을 막아주는 핵심! 핸들러를 연결합니다.
         eventSource.on(event_types.MESSAGE_RECEIVED, handleAIResponse);
         
-        if (this_chid !== undefined) loadAllAssets();
+        if (this_chid !== undefined) {
+            refreshActiveSubChars();
+            renderSubCharsUI();
+            loadAllAssets();
+        }
 
-        console.log(`[${MODULE_NAME}] 프레임(액자) 효과 지원 버전 로드 완료!`);
+        console.log(`[${MODULE_NAME}] 번역기 충돌(블로킹) 방지 및 UI 레이아웃 패치 버전 로드 완료!`);
     } catch (e) { console.error(e); }
 });
 
@@ -86,21 +96,12 @@ function initSettings() {
     if (!extSettings.apiProvider) extSettings.apiProvider = 'default';
     if (!extSettings.userScale) extSettings.userScale = 1.0;
     
-    // 🌟 프레임 효과 설정 불러오기 (기존 버전 호환성 유지)
     if (extSettings.frameType === undefined) {
         extSettings.frameType = extSettings.showFrame ? 'basic' : 'none'; 
     }
     $('#cs-frame-type').val(extSettings.frameType);
 
-    if (!extSettings.subChars || !Array.isArray(extSettings.subChars)) {
-        extSettings.subChars = [{ 
-            id: 'default', 
-            name: '메인 캐릭터', 
-            scale: extSettings.charScale || 1.0, 
-            posX: extSettings.charPosX || '', 
-            posY: extSettings.charPosY || '' 
-        }];
-    }
+    if (!extSettings.botSubChars) extSettings.botSubChars = {};
 
     $('#cs-context-size').val(extSettings.contextSize);
     $('#cs-api-provider').val(extSettings.apiProvider);
@@ -109,11 +110,35 @@ function initSettings() {
     updateModelList();
 }
 
-function applyFrameStyle() {
-    // 기존 프레임 클래스 모두 제거
-    $('.custom-sprite-img').removeClass('frame-basic frame-polaroid frame-glowing frame-elegant');
+function refreshActiveSubChars() {
+    if (this_chid === undefined) {
+        activeSubChars = [];
+        return;
+    }
+    const character = characters[this_chid];
+    if (!character) {
+        activeSubChars = [];
+        return;
+    }
+    const baseName = character.avatar.replace(/\.[^/.]+$/, '');
     
-    // 선택된 프레임이 있으면 추가
+    if (!extSettings.botSubChars) extSettings.botSubChars = {};
+    
+    if (!extSettings.botSubChars[baseName]) {
+        extSettings.botSubChars[baseName] = [{ 
+            id: 'default', 
+            name: '메인 캐릭터', 
+            scale: 1.0, 
+            posX: '', 
+            posY: '' 
+        }];
+    }
+    
+    activeSubChars = extSettings.botSubChars[baseName];
+}
+
+function applyFrameStyle() {
+    $('.custom-sprite-img').removeClass('frame-basic frame-polaroid frame-glowing frame-elegant');
     if (extSettings.frameType && extSettings.frameType !== 'none') {
         $('.custom-sprite-img').addClass(`frame-${extSettings.frameType}`);
     }
@@ -128,27 +153,30 @@ function renderSubCharsUI() {
     $displayContainer.empty();
     $targetContainer.empty();
 
+    if (activeSubChars.length === 0) return;
+
     $displayContainer.append(`
         <div id="wrapper-user" class="standing-wrapper" data-target="user" style="position:fixed; bottom:0; left:10%; z-index:10000; pointer-events:none; transition: outline 0.2s, background 0.2s;">
             <div id="display-user" style="transform-origin: bottom center; pointer-events:none;"></div>
         </div>
     `);
-    $targetContainer.append(`<label style="cursor:pointer; color:#34d399;"><input type="radio" name="cs-edit-target" value="user"> 🧑 페르소나</label>`);
+    $targetContainer.append(`<label style="cursor:pointer; color:#34d399; white-space:nowrap;"><input type="radio" name="cs-edit-target" value="user"> 🧑 페르소나</label>`);
 
-    extSettings.subChars.forEach((sc, index) => {
+    activeSubChars.forEach((sc, index) => {
+        // 🌟 여기서 레이아웃 깨짐(세로 정렬)을 막기 위해 gap과 white-space를 줍니다!
         const blockHtml = `
             <div class="sub-char-block" data-id="${sc.id}" style="padding:12px; border:1px solid #4b5563; border-radius:8px; background:rgba(0,0,0,0.2);">
-                <div class="flex-container" style="justify-content: space-between; margin-bottom:10px;">
+                <div class="flex-container" style="justify-content: space-between; margin-bottom:10px; flex-wrap: wrap; gap: 5px;">
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <label style="color: #60a5fa; margin:0; font-size:15px;"><b>👤 ${sc.name}</b></label>
-                        <button class="menu_button rename-sc-btn" data-id="${sc.id}" style="padding: 2px 8px; font-size: 11px;"><i class="fa-solid fa-pen"></i> 이름 변경</button>
+                        <label style="color: #60a5fa; margin:0; font-size:15px; white-space:nowrap;"><b>👤 ${sc.name}</b></label>
+                        <button class="menu_button rename-sc-btn" data-id="${sc.id}" style="padding: 2px 8px; font-size: 11px; white-space:nowrap;"><i class="fa-solid fa-pen"></i> 이름 변경</button>
                     </div>
-                    ${index !== 0 ? `<button class="menu_button danger_button delete-sc-btn" data-id="${sc.id}" style="padding: 2px 8px; font-size: 11px;"><i class="fa-solid fa-trash"></i> 캐릭 삭제</button>` : ''}
+                    ${index !== 0 ? `<button class="menu_button danger_button delete-sc-btn" data-id="${sc.id}" style="padding: 2px 8px; font-size: 11px; white-space:nowrap;"><i class="fa-solid fa-trash"></i> 캐릭 삭제</button>` : ''}
                 </div>
-                <div class="flex-container flexWrap">
-                    <button class="menu_button upload-sc-btn" data-id="${sc.id}"><i class="fa-solid fa-file-upload"></i> 업로드</button>
+                <div class="flex-container flexWrap" style="gap: 8px;">
+                    <button class="menu_button upload-sc-btn" data-id="${sc.id}" style="white-space:nowrap; flex:1;"><i class="fa-solid fa-file-upload"></i> 업로드</button>
                     <input type="file" id="upload-input-${sc.id}" data-id="${sc.id}" class="sc-file-input" multiple accept="image/*" style="display:none;">
-                    <button class="menu_button danger_button clear-sc-btn" data-id="${sc.id}"><i class="fa-solid fa-trash"></i> 비우기</button>
+                    <button class="menu_button danger_button clear-sc-btn" data-id="${sc.id}" style="white-space:nowrap; flex:1;"><i class="fa-solid fa-trash"></i> 비우기</button>
                 </div>
                 <div id="preview-${sc.id}" class="asset-grid-container" style="margin-top:10px;"></div>
             </div>
@@ -161,7 +189,7 @@ function renderSubCharsUI() {
             </div>
         `);
 
-        $targetContainer.prepend(`<label style="cursor:pointer; color:#60a5fa;"><input type="radio" name="cs-edit-target" value="${sc.id}" ${index === 0 ? 'checked' : ''}> 👤 ${sc.name}</label>`);
+        $targetContainer.prepend(`<label style="cursor:pointer; color:#60a5fa; white-space:nowrap;"><input type="radio" name="cs-edit-target" value="${sc.id}" ${index === 0 ? 'checked' : ''}> 👤 ${sc.name}</label>`);
     });
 
     bindSubCharEvents();
@@ -176,7 +204,7 @@ function applyDisplaySettings() {
         $('#wrapper-user').css({ left: '10%', top: 'auto', right: 'auto', bottom: '0' });
     }
 
-    extSettings.subChars.forEach(sc => {
+    activeSubChars.forEach(sc => {
         $(`#display-${sc.id}`).css('transform', `scale(${sc.scale})`);
         if (sc.posX && sc.posY) {
             $(`#wrapper-${sc.id}`).css({ left: sc.posX, top: sc.posY, right: 'auto', bottom: 'auto' });
@@ -191,7 +219,7 @@ function updateEditTargetUI() {
     let activeScale = isUser ? extSettings.userScale : 1.0;
     
     if (!isUser) {
-        const sc = extSettings.subChars.find(s => s.id === editTarget);
+        const sc = activeSubChars.find(s => s.id === editTarget);
         if (sc) activeScale = sc.scale;
     }
     
@@ -224,11 +252,11 @@ function toggleEditMode(forceState) {
         $toggleBtn.css('background-color', 'var(--SmartThemeQuoteColor, #374151)');
         $controls.css('display', 'flex');
         
-        editTarget = $('input[name="cs-edit-target"]:checked').val() || extSettings.subChars[0].id;
+        editTarget = $('input[name="cs-edit-target"]:checked').val() || (activeSubChars.length > 0 ? activeSubChars[0].id : 'user');
         updateEditTargetUI();
 
         if ($('#display-user').is(':empty') && assetsMap['user']?.length > 0) updateDisplay(assetsMap['user'][0].label, 'none', 'user', true);
-        extSettings.subChars.forEach(sc => {
+        activeSubChars.forEach(sc => {
             if ($(`#display-${sc.id}`).is(':empty') && assetsMap[sc.id]?.length > 0) {
                 updateDisplay(assetsMap[sc.id][0].label, 'none', sc.id, true);
             }
@@ -242,7 +270,7 @@ function toggleEditMode(forceState) {
         
         extSettings.userPosX = $('#wrapper-user').css('left');
         extSettings.userPosY = $('#wrapper-user').css('top');
-        extSettings.subChars.forEach(sc => {
+        activeSubChars.forEach(sc => {
             sc.posX = $(`#wrapper-${sc.id}`).css('left');
             sc.posY = $(`#wrapper-${sc.id}`).css('top');
         });
@@ -262,7 +290,7 @@ function getFolderName(targetId) {
     
     if (targetId === 'default') return `${baseName}_standing`;
     
-    const subChar = extSettings.subChars.find(s => s.id === targetId);
+    const subChar = activeSubChars.find(s => s.id === targetId);
     if (subChar) {
         const safeSubName = subChar.name.replace(/[^a-zA-Z0-9가-힣]/g, '_');
         return `${baseName}_standing_${safeSubName}`;
@@ -272,8 +300,9 @@ function getFolderName(targetId) {
 }
 
 async function loadAllAssets() {
+    if (this_chid === undefined) return;
     await loadAssets('user');
-    for (const sc of extSettings.subChars) {
+    for (const sc of activeSubChars) {
         await loadAssets(sc.id);
     }
 }
@@ -316,12 +345,6 @@ async function loadAssets(targetId) {
             `);
         });
 
-        $div.find('.delete-asset-btn').on('click', async function() {
-            if(confirm("이미지를 폴더에서 완전히 삭제하시겠습니까?")) {
-                await deleteAsset($(this).data('target'), $(this).data('label'), $(this).data('filename'));
-            }
-        });
-
         if ($display.is(':empty') && assets.length > 0) {
             updateDisplay(assets[0].label, 'none', targetId, true);
         }
@@ -362,7 +385,6 @@ function bindGlobalEvents() {
     $('#cs-api-model').on('change', function() { extSettings.apiModel = $(this).val(); save(); });
     $('#cs-system-prompt').on('input', function() { extSettings.systemPrompt = $(this).val(); save(); });
 
-    // 🌟 프레임 테마 변경 이벤트
     $('#cs-frame-type').on('change', function() {
         extSettings.frameType = $(this).val();
         applyFrameStyle();
@@ -385,7 +407,7 @@ function bindGlobalEvents() {
             extSettings.userScale = val;
             $('#display-user').css('transform', `scale(${val})`);
         } else {
-            const sc = extSettings.subChars.find(s => s.id === editTarget);
+            const sc = activeSubChars.find(s => s.id === editTarget);
             if (sc) {
                 sc.scale = val;
                 $(`#display-${sc.id}`).css('transform', `scale(${val})`);
@@ -395,7 +417,7 @@ function bindGlobalEvents() {
 
     $('#cs-reset-display').on('click', function() {
         extSettings.userScale = 1.0; extSettings.userPosX = ''; extSettings.userPosY = '';
-        extSettings.subChars.forEach(sc => { sc.scale = 1.0; sc.posX = ''; sc.posY = ''; });
+        activeSubChars.forEach(sc => { sc.scale = 1.0; sc.posX = ''; sc.posY = ''; });
         if (editMode) toggleEditMode(false);
         applyDisplaySettings();
         save();
@@ -413,12 +435,20 @@ function bindGlobalEvents() {
         }
     });
 
+    $(document).on('click', '.delete-asset-btn', async function() {
+        if(confirm("이미지를 폴더에서 완전히 삭제하시겠습니까?")) {
+            await deleteAsset($(this).data('target'), $(this).data('label'), $(this).data('filename'));
+        }
+    });
+
     $('#cs-add-sub-char-btn').off('click').on('click', function() {
+        if (this_chid === undefined) return alert("먼저 채팅방(캐릭터)에 입장해주세요!");
+        
         const name = prompt("추가할 캐릭터의 이름을 입력하세요:");
         if (!name || !name.trim()) return;
         
         const newId = 'sub_' + Date.now();
-        extSettings.subChars.push({ id: newId, name: name.trim(), scale: 1.0, posX: '', posY: '' });
+        activeSubChars.push({ id: newId, name: name.trim(), scale: 1.0, posX: '', posY: '' });
         save();
         renderSubCharsUI();
         loadAllAssets(); 
@@ -428,7 +458,7 @@ function bindGlobalEvents() {
 function bindSubCharEvents() {
     $('.rename-sc-btn').off('click').on('click', function() {
         const id = $(this).data('id');
-        const sc = extSettings.subChars.find(s => s.id === id);
+        const sc = activeSubChars.find(s => s.id === id);
         if (!sc) return;
         const newName = prompt("새로운 이름을 입력하세요:", sc.name);
         if (newName && newName.trim()) {
@@ -442,7 +472,12 @@ function bindSubCharEvents() {
     $('.delete-sc-btn').off('click').on('click', function() {
         if(!confirm("이 캐릭터 슬롯을 완전히 삭제하시겠습니까?")) return;
         const id = $(this).data('id');
-        extSettings.subChars = extSettings.subChars.filter(s => s.id !== id);
+        
+        const character = characters[this_chid];
+        const baseName = character.avatar.replace(/\.[^/.]+$/, '');
+        extSettings.botSubChars[baseName] = extSettings.botSubChars[baseName].filter(s => s.id !== id);
+        activeSubChars = extSettings.botSubChars[baseName];
+        
         delete assetsMap[id];
         save();
         renderSubCharsUI();
@@ -510,84 +545,87 @@ function updateModelList() {
 
 function save() { saveSettingsDebounced(); }
 
-async function handleAIResponse(messageId) {
-    const context = getContext();
-    if (!context || !context.chat) return;
-    const msg = context.chat[messageId];
-    if (!msg || msg.is_user) return;
+// 🌟 번역기 블로킹 방지를 위해 async 껍데기를 벗기고 논블로킹(IIFE)으로 실행되게 합니다!
+function handleAIResponse(messageId) {
+    (async () => {
+        const context = getContext();
+        if (!context || !context.chat) return;
+        const msg = context.chat[messageId];
+        if (!msg || msg.is_user) return;
 
-    let charListsStr = '';
-    let hasAnyAsset = false;
-    extSettings.subChars.forEach(sc => {
-        const keys = (assetsMap[sc.id] || []).map(a => a.label).join(', ') || 'None';
-        if (keys !== 'None') hasAnyAsset = true;
-        charListsStr += `Character '${sc.name}' Keywords: [ ${keys} ]\n`;
-    });
+        let charListsStr = '';
+        let hasAnyAsset = false;
+        activeSubChars.forEach(sc => {
+            const keys = (assetsMap[sc.id] || []).map(a => a.label).join(', ') || 'None';
+            if (keys !== 'None') hasAnyAsset = true;
+            charListsStr += `Character '${sc.name}' Keywords: [ ${keys} ]\n`;
+        });
 
-    const userKeys = (assetsMap['user'] || []).map(a => a.label).join(', ') || 'None';
-    if (userKeys !== 'None') hasAnyAsset = true;
-    if (!hasAnyAsset) return;
+        const userKeys = (assetsMap['user'] || []).map(a => a.label).join(', ') || 'None';
+        if (userKeys !== 'None') hasAnyAsset = true;
+        if (!hasAnyAsset) return;
 
-    const chatLog = context.chat.slice(-extSettings.contextSize).map(m => `${m.is_user?'User':'AI'}: ${m.mes}`).join('\n\n');
-    const safeUserName = name1 || 'User';
-    
-    let systemPrompt = extSettings.systemPrompt || DEFAULT_PROMPT;
-    systemPrompt = systemPrompt
-        .replace(/\{\{character_lists\}\}/g, charListsStr.trim())
-        .replace(/\{\{user_keywords\}\}/g, userKeys)
-        .replace(/\{\{user_name\}\}/g, safeUserName);
-    
-    const finalPrompt = `${systemPrompt}\n\nChat History:\n${chatLog}`;
-
-    try {
-        const reqBody = { messages: [{ role: 'system', content: finalPrompt }], temperature: 0.1, stream: false };
-        let apiSource = '';
-
-        if (extSettings.apiProvider !== 'default') {
-            apiSource = extSettings.apiProvider;
-            reqBody.chat_completion_source = apiSource;
-            if (extSettings.apiModel) reqBody.model = extSettings.apiModel;
-        } else {
-            apiSource = $('#chat_completion_source').val();
-            reqBody.chat_completion_source = apiSource;
-        }
-
-        if (apiSource === 'vertexai' || apiSource === 'vertex') {
-            reqBody.vertexai_auth_mode = oai_settings.vertexai_auth_mode || 'express';
-            reqBody.vertexai_region = oai_settings.vertexai_region || 'global';
-            if (reqBody.vertexai_auth_mode === 'express' && oai_settings.vertexai_express_project_id) {
-                reqBody.vertexai_express_project_id = oai_settings.vertexai_express_project_id;
-            }
-        }
-
-        const res = await fetch('/api/backends/chat-completions/generate', { method: 'POST', headers: { ...getRequestHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(reqBody) });
-        if (!res.ok) return;
-
-        const data = await res.json();
-        let text = data?.choices?.[0]?.message?.content || data?.candidates?.[0]?.content?.parts?.[0]?.text || data?.content?.[0]?.text || (typeof data === 'string' ? data : "");
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const chatLog = context.chat.slice(-extSettings.contextSize).map(m => `${m.is_user?'User':'AI'}: ${m.mes}`).join('\n\n');
+        const safeUserName = name1 || 'User';
         
-        if (jsonMatch) {
-            const json = JSON.parse(jsonMatch[0]);
-            if (json.expressions && Array.isArray(json.expressions)) {
-                json.expressions.forEach(exp => {
-                    const reqName = (exp.name || exp.characterName || exp.characterId || '').toLowerCase();
-                    const isActive = exp.isActive !== false; 
-                    
-                    if (exp.isUser === true || reqName === safeUserName.toLowerCase() || reqName === 'user') {
-                        updateDisplay(exp.expression, exp.transition || 'none', 'user', isActive);
-                        return;
-                    }
-                    const matchedChar = extSettings.subChars.find(sc => sc.name.toLowerCase() === reqName);
-                    if (matchedChar) {
-                        updateDisplay(exp.expression, exp.transition || 'none', matchedChar.id, isActive);
-                    } else if (extSettings.subChars.length === 1) {
-                        updateDisplay(exp.expression, exp.transition || 'none', extSettings.subChars[0].id, isActive);
-                    }
-                });
+        let systemPrompt = extSettings.systemPrompt || DEFAULT_PROMPT;
+        systemPrompt = systemPrompt
+            .replace(/\{\{character_lists\}\}/g, charListsStr.trim())
+            .replace(/\{\{user_keywords\}\}/g, userKeys)
+            .replace(/\{\{user_name\}\}/g, safeUserName);
+        
+        const finalPrompt = `${systemPrompt}\n\nChat History:\n${chatLog}`;
+
+        try {
+            const reqBody = { messages: [{ role: 'system', content: finalPrompt }], temperature: 0.1, stream: false };
+            let apiSource = '';
+
+            if (extSettings.apiProvider !== 'default') {
+                apiSource = extSettings.apiProvider;
+                reqBody.chat_completion_source = apiSource;
+                if (extSettings.apiModel) reqBody.model = extSettings.apiModel;
+            } else {
+                apiSource = $('#chat_completion_source').val();
+                reqBody.chat_completion_source = apiSource;
             }
-        }
-    } catch (e) { console.error(`[${MODULE_NAME}] 에러:`, e); }
+
+            if (apiSource === 'vertexai' || apiSource === 'vertex') {
+                reqBody.vertexai_auth_mode = oai_settings.vertexai_auth_mode || 'express';
+                reqBody.vertexai_region = oai_settings.vertexai_region || 'global';
+                if (reqBody.vertexai_auth_mode === 'express' && oai_settings.vertexai_express_project_id) {
+                    reqBody.vertexai_express_project_id = oai_settings.vertexai_express_project_id;
+                }
+            }
+
+            const res = await fetch('/api/backends/chat-completions/generate', { method: 'POST', headers: { ...getRequestHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(reqBody) });
+            if (!res.ok) return;
+
+            const data = await res.json();
+            let text = data?.choices?.[0]?.message?.content || data?.candidates?.[0]?.content?.parts?.[0]?.text || data?.content?.[0]?.text || (typeof data === 'string' ? data : "");
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            
+            if (jsonMatch) {
+                const json = JSON.parse(jsonMatch[0]);
+                if (json.expressions && Array.isArray(json.expressions)) {
+                    json.expressions.forEach(exp => {
+                        const reqName = (exp.name || exp.characterName || exp.characterId || '').toLowerCase();
+                        const isActive = exp.isActive !== false; 
+                        
+                        if (exp.isUser === true || reqName === safeUserName.toLowerCase() || reqName === 'user') {
+                            updateDisplay(exp.expression, exp.transition || 'none', 'user', isActive);
+                            return;
+                        }
+                        const matchedChar = activeSubChars.find(sc => sc.name.toLowerCase() === reqName);
+                        if (matchedChar) {
+                            updateDisplay(exp.expression, exp.transition || 'none', matchedChar.id, isActive);
+                        } else if (activeSubChars.length === 1) {
+                            updateDisplay(exp.expression, exp.transition || 'none', activeSubChars[0].id, isActive);
+                        }
+                    });
+                }
+            }
+        } catch (e) { console.error(`[${MODULE_NAME}] 에러:`, e); }
+    })();
 }
 
 function updateDisplay(expLabel, trans, targetId, isActive = true) {
@@ -608,10 +646,9 @@ function updateDisplay(expLabel, trans, targetId, isActive = true) {
 
     const filterStyle = isActive ? 'brightness(1)' : 'brightness(0.4)';
     const opacityStyle = isActive ? '1' : '0.7';
-    // 🌟 프레임 효과 클래스 추가
     const frameClass = (extSettings.frameType && extSettings.frameType !== 'none') ? `frame-${extSettings.frameType}` : '';
 
     const $box = $(`#display-${targetId}`);
-    $box.empty().append(`<img src="${asset.path}" class="custom-sprite-img ${trans} ${frameClass}" style="pointer-events: none; -webkit-user-drag: none; filter: ${filterStyle}; opacity: ${opacityStyle}; transition: filter 0.3s ease, opacity 0.3s ease;">`);
+    $box.empty().append(`<img src="${asset.path}" class="custom-sprite-img ${trans} ${frameClass}" style="pointer-events: none; -webkit-user-drag: none; max-height:85vh; filter: ${filterStyle}; opacity: ${opacityStyle}; transition: filter 0.3s ease, opacity 0.3s ease;">`);
     setTimeout(() => $box.find('img').removeClass(trans), 500);
 }
