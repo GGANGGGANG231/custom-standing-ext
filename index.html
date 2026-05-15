@@ -1,0 +1,127 @@
+<div class="extension_settings_block" id="custom_standing_settings">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>🎭 커스텀 스탠딩 확장</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+
+        <div class="inline-drawer-content" style="display: none;">
+            <div class="settings_block">
+                <div class="flex-container">
+                    <label for="cs-context-size"><b>최근 대화 분석 개수</b></label>
+                    <input type="number" id="cs-context-size" class="text_pole" min="1" max="10" value="3">
+                </div>
+            </div>
+            <hr>
+
+            <div class="settings_block">
+                <label><b>분석 전용 AI 설정</b></label>
+                <div class="flex-container marginTop10">
+                    <select id="cs-api-provider" class="text_pole">
+                        <option value="default">실리태번 기본 AI 사용</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="claude">Claude</option>
+                        <option value="makersuite">Google AI Studio</option>
+                        <option value="vertexai">Google Vertex AI</option>
+                        <option value="openrouter">OpenRouter</option>
+                        <option value="cohere">Cohere</option>
+                        <option value="deepseek">DeepSeek</option>
+                        <option value="groq">Groq</option>
+                    </select>
+                </div>
+                <div id="cs-model-container" class="marginTop10" style="display:none;">
+                    <label>모델 선택</label>
+                    <select id="cs-api-model" class="text_pole"></select>
+                </div>
+            </div>
+            <hr>
+
+            <div class="settings_block">
+                <div class="flex-container" style="justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <label style="color: #60a5fa; margin: 0;"><b>👥 다중 캐릭터 스탠딩 에셋</b></label>
+                    <button class="menu_button" id="cs-add-sub-char-btn" style="padding: 3px 10px; font-weight: bold;">
+                        <i class="fa-solid fa-plus"></i> 추가 캐릭터 생성
+                    </button>
+                </div>
+                
+                <div id="multi-char-settings-container" style="display: flex; flex-direction: column; gap: 15px;"></div>
+                
+                <hr style="margin: 20px 0; border-color: rgba(255,255,255,0.1);">
+                
+                <div class="flex-container" style="justify-content: space-between;">
+                    <label style="color: #34d399;"><b>🧑 페르소나(유저) 에셋</b></label>
+                    <button class="menu_button" id="cs-refresh-user" style="padding: 2px 8px; font-size: 12px;">
+                        <i class="fa-solid fa-arrows-rotate"></i> 이름 변경 인식
+                    </button>
+                </div>
+                <div class="flex-container flexWrap marginTop10">
+                    <button class="menu_button" onclick="document.getElementById('cs-user-asset-upload').click()">
+                        <i class="fa-solid fa-file-upload"></i> 업로드
+                    </button>
+                    <input type="file" id="cs-user-asset-upload" multiple accept="image/*" style="display:none;">
+                    <button class="menu_button danger_button" id="cs-clear-user-assets">
+                        <i class="fa-solid fa-trash"></i> 비우기
+                    </button>
+                </div>
+                <div id="cs-user-asset-preview" class="asset-grid-container"></div>
+            </div>
+            <hr>
+
+            <div class="settings_block">
+                <label for="cs-system-prompt"><b>감정 분석 프롬프트</b></label>
+                <div class="sm-textarea-container marginTop10">
+                    <textarea id="cs-system-prompt" class="text_pole" rows="12"></textarea>
+                </div>
+                <small><b>매크로 안내:</b><br>
+                - 모든 캐릭터의 이미지 목록들: <b>{{character_lists}}</b><br>
+                - 페르소나의 이미지 목록들: <b>{{user_keywords}}</b><br>
+                - 페르소나의 현재 이름: <b>{{user_name}}</b></small>
+            </div>
+            <hr>
+
+            <div class="settings_block">
+                <label><b>스탠딩 화면 설정</b></label>
+                <div class="flex-container flexWrap marginTop10 marginBottom10" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">
+                    <div class="flex-container flex1" style="margin: 0; align-items: center; gap: 10px;">
+                        <label style="font-weight: bold; color: #fbbf24; margin: 0;">🖼️ 스탠딩 프레임 (액자) 테마:</label>
+                        <select id="cs-frame-type" class="text_pole" style="width: auto;">
+                            <option value="none">사용 안 함</option>
+                            <option value="basic">기본 액자</option>
+                            <option value="polaroid">폴라로이드</option>
+                            <option value="glowing">네온 글로우</option>
+                            <option value="elegant">우아한 금장</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex-container flexWrap marginTop10">
+                    <button class="menu_button" id="cs-toggle-edit-mode">
+                        <i class="fa-solid fa-pen-ruler"></i>
+                        <span id="cs-edit-mode-text">스탠딩 수정 모드 켜기</span>
+                    </button>
+                    <button class="menu_button" id="cs-reset-display">
+                        <i class="fa-solid fa-rotate-left"></i> 위치/크기 전체 초기화
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="cs-edit-controls" style="display:none; position:fixed; top:30px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.85); padding:12px 20px; border-radius:12px; flex-direction:column; align-items:center; gap:12px; pointer-events:auto; white-space:nowrap; border:1px solid #666; box-shadow:0 4px 15px rgba(0,0,0,0.5); z-index: 999999;">
+    <div id="cs-edit-target-container" style="display:flex; gap: 15px; color: white; font-weight: bold; background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 8px; flex-wrap: wrap; justify-content: center;">
+    </div>
+    <div style="display:flex; align-items:center; gap:15px; width:100%; justify-content: center;">
+        <span style="color:#fff; font-weight:bold; font-size:14px;"><i class="fa-solid fa-arrows-up-down-left-right" style="color:#bbb; margin-right:5px;"></i>화면 드래그</span>
+        <div style="width:1px; height:20px; background:#555;"></div>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-magnifying-glass" style="color:#aaa; font-size:14px;"></i>
+            <input type="range" id="cs-sprite-scale" min="0.3" max="3.0" step="0.1" value="1.0" style="width:120px; cursor:pointer;">
+            <span id="cs-scale-val" style="color:white; font-size:14px; width:30px; text-align:right;">1.0</span>
+        </div>
+        <div style="width:1px; height:20px; background:#555;"></div>
+        <button id="cs-close-edit" style="background:#3b82f6; color:white; border:none; border-radius:6px; padding:6px 15px; font-size:14px; font-weight:bold; cursor:pointer;">수정 완료</button>
+    </div>
+</div>
+
+<div id="multi-char-display-container"></div>
