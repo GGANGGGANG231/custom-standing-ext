@@ -7,6 +7,15 @@
 
         <div class="inline-drawer-content" style="display: none;">
             <div class="settings_block">
+                <div class="flex-container" style="justify-content: space-between; align-items: center;">
+                    <label for="cs-enable-extension" style="font-weight: bold; color: #fbbf24; margin: 0;"><b>✨ 확장 기능 켜기/끄기</b></label>
+                    <input type="checkbox" id="cs-enable-extension" style="width: 20px; height: 20px; cursor: pointer;">
+                </div>
+                <small style="display: block; margin-top: 5px; color: #aaa;">체크를 해제하면 AI 감정 분석 요청을 완전히 차단하고 동작을 중지합니다.</small>
+            </div>
+            <hr>
+
+            <div class="settings_block">
                 <div class="flex-container">
                     <label for="cs-context-size"><b>최근 대화 분석 개수</b></label>
                     <input type="number" id="cs-context-size" class="text_pole" min="1" max="10" value="3">

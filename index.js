@@ -69,7 +69,7 @@ jQuery(async () => {
             loadAllAssets();
         });
         
-        // 🌟 여기가 번역기와 충돌을 막아주는 핵심! 핸들러를 연결합니다.
+        // 핸들러 연결
         eventSource.on(event_types.MESSAGE_RECEIVED, handleAIResponse);
         
         if (this_chid !== undefined) {
@@ -78,7 +78,7 @@ jQuery(async () => {
             loadAllAssets();
         }
 
-        console.log(`[${MODULE_NAME}] 번역기 충돌(블로킹) 방지 및 UI 레이아웃 패치 버전 로드 완료!`);
+        console.log(`[${MODULE_NAME}] 활성화 스위치 패치 버전 로드 완료!`);
     } catch (e) { console.error(e); }
 });
 
@@ -88,6 +88,10 @@ function initSettings() {
     }
     extSettings = extension_settings.customSpriteExt;
     
+    // 🌟 활성화 스위치 기본값 설정
+    if (extSettings.isEnabled === undefined) extSettings.isEnabled = true;
+    $('#cs-enable-extension').prop('checked', extSettings.isEnabled);
+
     if (!extSettings.systemPrompt || !extSettings.systemPrompt.includes('isActive')) {
         extSettings.systemPrompt = DEFAULT_PROMPT;
     }
@@ -155,15 +159,18 @@ function renderSubCharsUI() {
 
     if (activeSubChars.length === 0) return;
 
-    $displayContainer.append(`
-        <div id="wrapper-user" class="standing-wrapper" data-target="user" style="position:fixed; bottom:0; left:10%; z-index:10000; pointer-events:none; transition: outline 0.2s, background 0.2s;">
-            <div id="display-user" style="transform-origin: bottom center; pointer-events:none;"></div>
-        </div>
-    `);
+// 확장이 켜져 있을 때만 화면에 스프라이트 컨테이너 추가
+    if (extSettings.isEnabled) {
+        $displayContainer.append(`
+            <div id="wrapper-user" class="standing-wrapper" data-target="user" style="position:fixed; bottom:0; left:10%; z-index:10000; pointer-events:none; transition: outline 0.2s, background 0.2s;">
+                <div id="display-user" style="transform-origin: bottom center; pointer-events:none;"></div>
+            </div>
+        `);
+    }
     $targetContainer.append(`<label style="cursor:pointer; color:#34d399; white-space:nowrap;"><input type="radio" name="cs-edit-target" value="user"> 🧑 페르소나</label>`);
 
     activeSubChars.forEach((sc, index) => {
-        // 🌟 여기서 레이아웃 깨짐(세로 정렬)을 막기 위해 gap과 white-space를 줍니다!
+        // 설정 블록 생성 로직은 유지 (생략)
         const blockHtml = `
             <div class="sub-char-block" data-id="${sc.id}" style="padding:12px; border:1px solid #4b5563; border-radius:8px; background:rgba(0,0,0,0.2);">
                 <div class="flex-container" style="justify-content: space-between; margin-bottom:10px; flex-wrap: wrap; gap: 5px;">
@@ -183,15 +190,16 @@ function renderSubCharsUI() {
         `;
         $settingsContainer.append(blockHtml);
 
-        $displayContainer.append(`
-            <div id="wrapper-${sc.id}" class="standing-wrapper" data-target="${sc.id}" style="position:fixed; bottom:0; right:${10 + (index * 5)}%; z-index:10000; pointer-events:none; transition: outline 0.2s, background 0.2s;">
-                <div id="display-${sc.id}" style="transform-origin: bottom center; pointer-events:none;"></div>
-            </div>
-        `);
+        if (extSettings.isEnabled) {
+            $displayContainer.append(`
+                <div id="wrapper-${sc.id}" class="standing-wrapper" data-target="${sc.id}" style="position:fixed; bottom:0; right:${10 + (index * 5)}%; z-index:10000; pointer-events:none; transition: outline 0.2s, background 0.2s;">
+                    <div id="display-${sc.id}" style="transform-origin: bottom center; pointer-events:none;"></div>
+                </div>
+            `);
+        }
 
         $targetContainer.prepend(`<label style="cursor:pointer; color:#60a5fa; white-space:nowrap;"><input type="radio" name="cs-edit-target" value="${sc.id}" ${index === 0 ? 'checked' : ''}> 👤 ${sc.name}</label>`);
     });
-
     bindSubCharEvents();
     applyDisplaySettings();
 }
@@ -345,7 +353,7 @@ async function loadAssets(targetId) {
             `);
         });
 
-        if ($display.is(':empty') && assets.length > 0) {
+        if (extSettings.isEnabled && $display.is(':empty') && assets.length > 0) {
             updateDisplay(assets[0].label, 'none', targetId, true);
         }
 
@@ -380,6 +388,23 @@ async function deleteAsset(targetId, label, fileName) {
 }
 
 function bindGlobalEvents() {
+// 🌟 끄기/켜기 이벤트 바인딩 및 화면 즉시 갱신
+    $('#cs-enable-extension').on('change', function() {
+        const isEnabled = $(this).is(':checked');
+        extSettings.isEnabled = isEnabled;
+        save();
+
+        if (isEnabled) {
+            // 다시 켰을 때는 UI를 새로 그려서 스프라이트를 나타나게 함
+            renderSubCharsUI();
+            loadAllAssets();
+        } else {
+            // 껐을 때는 화면에서 즉시 제거
+            $('#multi-char-display-container').empty();
+            if (editMode) toggleEditMode(false);
+        }
+    });
+
     $('#cs-context-size').on('input', function() { extSettings.contextSize = Number($(this).val()); save(); });
     $('#cs-api-provider').on('change', function() { extSettings.apiProvider = $(this).val(); updateModelList(); save(); });
     $('#cs-api-model').on('change', function() { extSettings.apiModel = $(this).val(); save(); });
@@ -545,8 +570,10 @@ function updateModelList() {
 
 function save() { saveSettingsDebounced(); }
 
-// 🌟 번역기 블로킹 방지를 위해 async 껍데기를 벗기고 논블로킹(IIFE)으로 실행되게 합니다!
 function handleAIResponse(messageId) {
+    // 🌟 확장이 비활성화 상태라면 즉시 리턴하여 AI 요청 차단!
+    if (extSettings.isEnabled === false) return; 
+
     (async () => {
         const context = getContext();
         if (!context || !context.chat) return;
@@ -563,6 +590,8 @@ function handleAIResponse(messageId) {
 
         const userKeys = (assetsMap['user'] || []).map(a => a.label).join(', ') || 'None';
         if (userKeys !== 'None') hasAnyAsset = true;
+        
+        // 에셋이 하나도 없으면 API 호출 방지
         if (!hasAnyAsset) return;
 
         const chatLog = context.chat.slice(-extSettings.contextSize).map(m => `${m.is_user?'User':'AI'}: ${m.mes}`).join('\n\n');
